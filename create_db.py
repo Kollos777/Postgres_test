@@ -2,7 +2,7 @@ import sqlite3
 
 def create_db():
 
-    with open('salary.sql', 'r') as f:
+    with open('query_1.sql', 'r') as f:
         sql = f.read()
 
     with sqlite3.connect('salary.db') as con:

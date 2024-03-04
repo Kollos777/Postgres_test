@@ -1,59 +1,40 @@
-from datetime import datetime
 import faker
-from random import randint, choice
+from random import randint
 import sqlite3
+import random
 
-NUMBER_STUDENTS = 3
-NUMBER_GROUPS = 3
-NUMBER_TEACHERS = 5
-NUMBER_SUBJECTS= 8
-NUMBER_TEACHERS = 5
+NUM_STUDENTS = randint(30, 50)
+NUM_GROUPS = 3
+NUM_SUBJECTS = randint(5, 8)
+NUM_TEACHERS = randint(3, 5)
+MAX_GRADES_PER_STUDENT = 20
 
+conn = sqlite3.connect('salary.db')
+cursor = conn.cursor()
+fake_data = faker.Faker()
+group_names = [fake_data.word() for _ in range(NUM_GROUPS)]
+teacher_names = [fake_data.name() for _ in range(NUM_TEACHERS)]
 
-def generate_fake_data(number_students, number_groups, number_teachers, number_subjects) -> tuple:
-    fake = faker.Faker()
+for group_name in group_names:
+    cursor.execute(f"INSERT INTO groups (group_name) VALUES (?)", (group_name,))
+    group_id_fn = cursor.lastrowid
+    for _ in range(NUM_STUDENTS // NUM_GROUPS):
+        student_name = fake_data.name()
+        cursor.execute("INSERT INTO students (student_name, group_id_fn) VALUES (?, ?)", (student_name, group_id_fn))
 
-    students = [(fake.name(), randint(1, NUMBER_GROUPS)) for _ in range(number_students)]
-    groups = [(f"Group {i}",) for i in range(1, number_groups + 1)]
-    teachers = [(fake.name(),) for _ in range(number_teachers)]
-    subjects = [(fake.word(), randint(1, NUMBER_TEACHERS)) for _ in range(number_subjects)]
+for teacher_name in teacher_names:
+    cursor.execute("INSERT INTO teachers (teacher_name) VALUES (?)", (teacher_name,))
+    teacher_id_fn = cursor.lastrowid
+    subjects = [fake_data.word() for _ in range(NUM_SUBJECTS)]
+    for subject_name in subjects:
+        cursor.execute("INSERT INTO subjects (subject_name, teacher_id_fn) VALUES (?, ?)", (subject_name, teacher_id_fn))
 
-    return students, groups, teachers, subjects
-
-def prepare_data(students, groups, teachers, subjects) -> tuple:
-    # Generate grades for each student in each subject
-    grades = []
-    for student in students:
-        student_id = students.index(student) + 1
-        for subject in subjects:
-            subject_id = subjects.index(subject) + 1
-            grade = randint(1, 10)  # Assuming grades are between 1 and 10
-            grades.append((student_id, subject_id, grade))
-
-    return students, groups, teachers, subjects, grades
-
-def insert_data_to_db(students, groups, teachers, subjects, grades) -> None:
-    with sqlite3.connect('school.db') as con:
-        cur = con.cursor()
-
-        # Insert groups
-        cur.executemany("INSERT INTO groups (group_name) VALUES (?)", groups)
-
-        # Insert teachers
-        cur.executemany("INSERT INTO teachers (teacher_name) VALUES (?)", teachers)
-
-        # Insert subjects
-        cur.executemany("INSERT INTO subjects (subject_name, teacher_id) VALUES (?, ?)", subjects)
-
-        # Insert students
-        cur.executemany("INSERT INTO students (student_name, group_id) VALUES (?, ?)", students)
-
-        # Insert grades
-        cur.executemany("INSERT INTO grades (student_id, subject_id, grade) VALUES (?, ?, ?)", grades)
-
-        con.commit()
-
-if __name__ == "__main__":
-    students, groups, teachers, subjects = generate_fake_data(NUMBER_STUDENTS, NUMBER_GROUPS, NUMBER_TEACHERS, NUMBER_SUBJECTS)
-    students, groups, teachers, subjects, grades = prepare_data(students, groups, teachers, subjects)
-    insert_data_to_db(students, groups, teachers, subjects, grades)
+        subject_id = cursor.lastrowid
+        for student_id in range(1, NUM_STUDENTS + 1):
+            num_grades = random.randint(1, MAX_GRADES_PER_STUDENT)
+            for _ in range(num_grades):
+                grade = random.randint(1, 100)
+                data = fake_data.date_time_between(start_date="-1y", end_date="now")
+                cursor.execute("INSERT INTO grades (student_id_fn, subject_id_fn, grade, data) VALUES (?, ?, ?, ?)", (student_id, subject_id, grade, data))
+conn.commit()
+conn.close()
