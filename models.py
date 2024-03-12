@@ -10,6 +10,7 @@ class Student(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     group_id = Column(Integer, ForeignKey('groups.id'))
+    group = relationship("Group", back_populates="students")
     grades = relationship("Grade", back_populates="student")
 
 class Group(Base):
